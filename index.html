@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Artillería de Precisión</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-top: #7fb3ff;
+      --bg-bottom: #d2691e;
+      --ground: #7a5c2e;
+      --accent: #ff3c00;
+      --green: #9acd32;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Share Tech Mono', monospace;
+      color: #f5f5f5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+
+    body {
+      background: radial-gradient(circle at top, var(--bg-top) 0%, #3b6b9b 60%, #1f2d3d 100%);
+      overflow: hidden;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    h1 {
+      font-family: 'VT323', monospace;
+      letter-spacing: 0.6rem;
+      text-transform: uppercase;
+      font-size: clamp(28px, 6vw, 64px);
+      text-shadow: 4px 4px 0 #111;
+      color: #ffe7b3;
+    }
+
+    #hud {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+      justify-content: center;
+      background: rgba(12, 18, 26, 0.65);
+      border: 2px solid rgba(255, 231, 179, 0.6);
+      border-radius: 10px;
+      padding: 10px 18px;
+      box-shadow: 0 12px 40px -16px #000;
+      backdrop-filter: blur(2px);
+      text-transform: uppercase;
+      letter-spacing: 0.2rem;
+      font-size: clamp(12px, 1.2vw, 16px);
+    }
+
+    #hud .group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    #lives {
+      display: flex;
+      gap: 6px;
+    }
+
+    .life {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #ff6b6b, #8b0000);
+      box-shadow: 0 0 12px rgba(255, 59, 0, 0.8);
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .life.lost {
+      opacity: 0.25;
+      transform: scale(0.8);
+      box-shadow: none;
+    }
+
+    #controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: center;
+      background: rgba(12, 18, 26, 0.6);
+      border: 2px solid rgba(255, 231, 179, 0.45);
+      border-radius: 10px;
+      padding: 10px 16px;
+    }
+
+    #controls input {
+      background: rgba(8, 12, 18, 0.85);
+      border: 1px solid rgba(255, 231, 179, 0.8);
+      padding: 10px 12px;
+      border-radius: 6px;
+      width: min(280px, 60vw);
+      text-align: center;
+      letter-spacing: 0.4rem;
+      text-transform: uppercase;
+      font-size: clamp(16px, 2vw, 24px);
+    }
+
+    #controls input:disabled {
+      opacity: 0.5;
+    }
+
+    #controls button {
+      background: linear-gradient(180deg, #ff7a45, #c62828);
+      border: none;
+      padding: 10px 28px;
+      border-radius: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.6rem;
+      font-weight: bold;
+      font-size: clamp(14px, 1.6vw, 18px);
+      cursor: pointer;
+      box-shadow: 0 10px 30px -14px rgba(255, 60, 0, 0.9);
+      transition: transform 0.08s ease, filter 0.12s ease;
+    }
+
+    #controls button:hover:not(:disabled) {
+      filter: brightness(1.08);
+    }
+
+    #controls button:active:not(:disabled) {
+      transform: translateY(2px);
+    }
+
+    #controls button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    #game {
+      width: min(1280px, 98vw);
+      height: min(720px, 72dvh);
+      position: relative;
+      overflow: hidden;
+      border-radius: 12px;
+      border: 3px solid rgba(255, 231, 179, 0.7);
+      box-shadow: 0 30px 80px -30px #000;
+      background: linear-gradient(180deg, var(--bg-top) 0%, #9fc9ff 60%, var(--ground) 60%, #5a4321 100%);
+    }
+
+    canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: pixelated;
+    }
+
+    #overlay {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      flex-direction: column;
+      gap: 16px;
+      background: radial-gradient(circle, rgba(8, 12, 18, 0.85) 0%, rgba(8, 12, 18, 0.95) 100%);
+      padding: 20px;
+    }
+
+    #overlay.active {
+      display: flex;
+    }
+
+    #overlay-title {
+      font-family: 'VT323', monospace;
+      font-size: clamp(48px, 12vw, 140px);
+      letter-spacing: 1rem;
+      text-transform: uppercase;
+      text-shadow: 6px 6px 0 #000;
+    }
+
+    #overlay-title.victory {
+      color: #b6ff9b;
+    }
+
+    #overlay-title.defeat {
+      color: #ff9b9b;
+    }
+
+    #overlay-sub {
+      letter-spacing: 0.4rem;
+      text-transform: uppercase;
+      font-size: clamp(14px, 2vw, 22px);
+      color: #ffe7b3;
+    }
+
+    #overlay button {
+      background: linear-gradient(180deg, #9acd32, #4b7c2a);
+      border: none;
+      padding: 12px 32px;
+      border-radius: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.8rem;
+      font-weight: bold;
+      font-size: clamp(14px, 1.8vw, 18px);
+      cursor: pointer;
+      box-shadow: 0 12px 36px -14px rgba(154, 205, 50, 0.9);
+    }
+
+    #msg {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(8, 12, 18, 0.7);
+      border: 1px solid rgba(255, 231, 179, 0.8);
+      padding: 8px 18px;
+      border-radius: 999px;
+      letter-spacing: 0.4rem;
+      text-transform: uppercase;
+      font-size: clamp(10px, 1vw, 14px);
+      pointer-events: none;
+      white-space: nowrap;
+      text-align: center;
+    }
+
+    #marks {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .mark {
+      position: absolute;
+      bottom: 40%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      font-size: clamp(10px, 0.9vw, 12px);
+      letter-spacing: 0.2rem;
+      text-transform: uppercase;
+      color: rgba(245, 245, 245, 0.7);
+      text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.6);
+    }
+
+    .mark::before {
+      content: "";
+      width: 2px;
+      height: 12px;
+      background: rgba(245, 245, 245, 0.6);
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Artillería de Precisión</h1>
+  <div id="hud">
+    <div class="group">
+      <span>Intentos restantes</span>
+      <div id="lives">
+        <div class="life"></div>
+        <div class="life"></div>
+        <div class="life"></div>
+      </div>
+    </div>
+    <div class="group">
+      <span>Tanque ubicado entre 50 y 500 m (aleatorio)</span>
+    </div>
+    <div class="group">
+      <span>Margen de impacto: ±10 m</span>
+    </div>
+  </div>
+  <div id="controls">
+    <input id="distInput" type="number" min="1" step="1" inputmode="numeric" placeholder="INGRESA METROS">
+    <button id="fireBtn">¡DISPARAR!</button>
+  </div>
+  <div id="game">
+    <canvas id="canvas" width="1280" height="720"></canvas>
+    <div id="marks"></div>
+    <div id="msg">INGRESA UNA DISTANCIA Y DISPARA</div>
+    <div id="overlay">
+      <div id="overlay-title"></div>
+      <div id="overlay-sub"></div>
+      <button id="restartBtn">REINICIAR MISIÓN</button>
+    </div>
+  </div>
+
+  <script>
+    // Física y configuración
+    const G = 9.81;
+    const CANON_ANGLE = 45 * Math.PI / 180;
+    const IMPACT_TOLERANCE_M = 10;
+    const MIN_DIST_M = 50;
+    const MAX_DIST_M = 500;
+    const SCALE_M_TO_PX = 2.4; // 1 metro = 2.4 px (ajustable)
+
+    // Elementos
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const livesEl = document.getElementById('lives');
+    const lives = Array.from(livesEl.querySelectorAll('.life'));
+    const distInput = document.getElementById('distInput');
+    const fireBtn = document.getElementById('fireBtn');
+    const msgEl = document.getElementById('msg');
+    const overlay = document.getElementById('overlay');
+    const overlayTitle = document.getElementById('overlay-title');
+    const overlaySub = document.getElementById('overlay-sub');
+    const restartBtn = document.getElementById('restartBtn');
+    const marksEl = document.getElementById('marks');
+
+    // Estado
+    let targetDistM = 0;
+    let attempts = 3;
+    let state = 'idle'; // idle | firing | exploding | ended
+    let lastShotDistPx = 0;
+    let lastHit = false;
+    let particles = [];
+    let trail = [];
+    let shake = 0;
+    let shakeTime = 0;
+
+    // Objetos
+    const cannon = {
+      x: 110,
+      y: 0,
+      baseW: 70,
+      baseH: 38,
+      barrelLen: 56,
+      angle: CANON_ANGLE
+    };
+    const tank = {
+      x: 0,
+      y: 0,
+      w: 64,
+      h: 22,
+      turretW: 28,
+      turretH: 10,
+      wheelR: 6
+    };
+    const projectile = {
+      active: false,
+      x: 0,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      t: 0,
+      r: 4,
+      maxT: 0
+    };
+
+    function randomTarget() {
+      return Math.floor(MIN_DIST_M + Math.random() * (MAX_DIST_M - MIN_DIST_M + 1));
+    }
+
+    function setMsg(text) {
+      msgEl.textContent = text;
+    }
+
+    function updateLives() {
+      for (let i = 0; i < lives.length; i++) {
+        lives[i].classList.toggle('lost', i >= attempts);
+      }
+    }
+
+    function resetGame() {
+      targetDistM = randomTarget();
+      attempts = 3;
+      state = 'idle';
+      particles.length = 0;
+      trail.length = 0;
+      shake = 0;
+      shakeTime = 0;
+      projectile.active = false;
+      lastShotDistPx = 0;
+      lastHit = false;
+      distInput.disabled = false;
+      distInput.value = '';
+      fireBtn.disabled = false;
+      overlay.classList.remove('active');
+      updateLives();
+      drawMarks();
+      setMsg('INGRESA UNA DISTANCIA EN METROS Y DISPARA');
+    }
+
+    function drawMarks() {
+      marksEl.innerHTML = '';
+      const groundY = canvas.height * 0.6;
+      for (let m = 50; m <= 500; m += 50) {
+        const px = cannon.x + m * SCALE_M_TO_PX;
+        if (px > canvas.width) break;
+        const div = document.createElement('div');
+        div.className = 'mark';
+        div.style.left = px + 'px';
+        div.style.bottom = (canvas.height - groundY + 8) + 'px';
+        div.textContent = m + ' m';
+        marksEl.appendChild(div);
+      }
+    }
+
+    function resize() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.floor(rect.width * dpr);
+      canvas.height = Math.floor(rect.height * dpr);
+      ctx.scale(dpr, dpr);
+      const w = rect.width;
+      const h = rect.height;
+      cannon.y = h * 0.6 - cannon.baseH;
+      tank.x = cannon.x + targetDistM * SCALE_M_TO_PX - tank.w / 2;
+      tank.y = h * 0.6 - tank.h - tank.wheelR;
+      drawMarks();
+    }
+
+    function fire() {
+      const val = parseInt(distInput.value, 10);
+      if (Number.isNaN(val) || val <= 0) {
+        setMsg('INGRESA UN NÚMERO VÁLIDO EN METROS');
+        return;
+      }
+      if (state !== 'idle') return;
+      attempts--;
+      updateLives();
+      const distMShot = val;
+      const distPx = cannon.x + distMShot * SCALE_M_TO_PX;
+      // velocidad inicial para alcanzar distPx con 45°
+      const v0 = Math.sqrt(G * distPx / Math.sin(2 * cannon.angle));
+      projectile.active = true;
+      projectile.x = cannon.x + cannon.barrelLen * Math.cos(cannon.angle);
+      projectile.y = cannon.y - cannon.barrelLen * Math.sin(cannon.angle);
+      projectile.vx = v0 * Math.cos(cannon.angle);
+      projectile.vy = -v0 * Math.sin(cannon.angle);
+      projectile.t = 0;
+      projectile.maxT = (2 * v0 * Math.sin(cannon.angle)) / G;
+      trail.length = 0;
+      trail.push({ x: projectile.x, y: projectile.y });
+      state = 'firing';
+      distInput.disabled = true;
+      fireBtn.disabled = true;
+      setMsg('DISPARANDO...');
+    }
+
+    function explode(x, y) {
+      state = 'exploding';
+      shake = 14;
+      shakeTime = 0.28;
+      for (let i = 0; i < 36; i++) {
+        const ang = (Math.PI * 2 / 36) * i;
+        const spd = 80 + Math.random() * 160;
+        particles.push({
+          x, y,
+          vx: Math.cos(ang) * spd,
+          vy: Math.sin(ang) * spd - Math.random() * 60,
+          life: 0.5 + Math.random() * 0.4,
+          max: 0.5 + Math.random() * 0.4,
+          r: 2 + Math.random() * 4,
+          color: Math.random() < 0.4 ? '#fffb8a' : (Math.random() < 0.7 ? '#ff6b3e' : '#ff3c00')
+        });
+      }
+    }
+
+    function endGame(victory) {
+      state = 'ended';
+      overlay.classList.add('active');
+      if (victory) {
+        overlayTitle.textContent = '¡OBJETIVO DESTRUIDO!';
+        overlayTitle.className = 'victory';
+        overlaySub.textContent = 'IMPACTO CERTERO';
+      } else {
+        overlayTitle.textContent = 'MISIÓN FALLIDA';
+        overlayTitle.className = 'defeat';
+        overlaySub.textContent = 'DISTANCIA REAL DEL TANQUE: ' + targetDistM + ' M';
+      }
+    }
+
+    function update(dt) {
+      if (state === 'firing' && projectile.active) {
+        projectile.t += dt;
+        projectile.x += projectile.vx * dt;
+        projectile.y += projectile.vy * dt;
+        projectile.vy += G * dt;
+        trail.push({ x: projectile.x, y: projectile.y });
+        if (trail.length > 20) trail.shift();
+        // suelo
+        if (projectile.y >= canvas.height * 0.6) {
+          projectile.active = false;
+          const hitDistM = (projectile.x - cannon.x) / SCALE_M_TO_PX;
+          const diff = Math.abs(hitDistM - targetDistM);
+          if (diff <= IMPACT_TOLERANCE_M) {
+            // acierto
+            lastHit = true;
+            const tx = cannon.x + targetDistM * SCALE_M_TO_PX;
+            const ty = tank.y + tank.h / 2;
+            explode(tx, ty);
+            setMsg('¡ACIERTO! TANQUE DESTRUIDO');
+            endGame(true);
+          } else {
+            // fallo
+            lastHit = false;
+            if (hitDistM < targetDistM) setMsg('MUY CORTO');
+            else setMsg('MUY LARGO');
+            if (attempts <= 0) {
+              endGame(false);
+            } else {
+              state = 'idle';
+              distInput.disabled = false;
+              fireBtn.disabled = false;
+            }
+          }
+        }
+      }
+      // partículas
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.life -= dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.vy += G * 0.6 * dt;
+        if (p.life <= 0) particles.splice(i, 1);
+      }
+      // shake
+      if (shakeTime > 0) {
+        shakeTime -= dt;
+        if (shakeTime <= 0) shake = 0;
+      }
+    }
+
+    function draw() {
+      const w = canvas.width / (window.devicePixelRatio || 1);
+      const h = canvas.height / (window.devicePixelRatio || 1);
+      ctx.save();
+      if (shake > 0) {
+        const sx = (Math.random() - 0.5) * shake;
+        const sy = (Math.random() - 0.5) * shake;
+        ctx.translate(sx, sy);
+      }
+      // cielo/suelo
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.6);
+      skyGrad.addColorStop(0, '#7fb3ff');
+      skyGrad.addColorStop(1, '#9fc9ff');
+      ctx.fillStyle = skyGrad;
+      ctx.fillRect(0, 0, w, h * 0.6);
+      const groundGrad = ctx.createLinearGradient(0, h * 0.6, 0, h);
+      groundGrad.addColorStop(0, '#7a5c2e');
+      groundGrad.addColorStop(1, '#5a4321');
+      ctx.fillStyle = groundGrad;
+      ctx.fillRect(0, h * 0.6, w, h * 0.4);
+
+      // estela
+      ctx.save();
+      ctx.globalAlpha = 0.4;
+      ctx.strokeStyle = '#fff3cd';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      for (let i = 0; i < trail.length; i++) {
+        const p = trail[i];
+        if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+      }
+      ctx.stroke();
+      ctx.restore();
+
+      // proyectil
+      if (projectile.active) {
+        ctx.beginPath();
+        ctx.arc(projectile.x, projectile.y, projectile.r, 0, Math.PI * 2);
+        ctx.fillStyle = '#1f1f1f';
+        ctx.shadowColor = 'rgba(255,140,0,0.6)';
+        ctx.shadowBlur = 8;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      // cañón
+      ctx.save();
+      ctx.translate(cannon.x, cannon.y);
+      ctx.fillStyle = '#2f3542';
+      ctx.beginPath();
+      ctx.arc(0, 0, 16, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.rotate(-cannon.angle);
+      ctx.fillStyle = '#1e2329';
+      ctx.fillRect(0, -4, cannon.barrelLen, 8);
+      ctx.restore();
+      // base
+      ctx.fillStyle = '#3b4453';
+      ctx.fillRect(cannon.x - 14, cannon.y - 4, cannon.baseW, cannon.baseH);
+
+      // tanque
+      const tx = cannon.x + targetDistM * SCALE_M_TO_PX - tank.w / 2;
+      tank.x = tx;
+      ctx.save();
+      ctx.translate(tank.x, tank.y);
+      ctx.fillStyle = '#7fa87c';
+      ctx.fillRect(0, 0, tank.w, tank.h);
+      ctx.fillStyle = '#9fcf9f';
+      ctx.fillRect(6, -6, tank.turretW, tank.turretH);
+      ctx.fillStyle = '#5f7f5f';
+      for (let i = 0; i < 5; i++) {
+        ctx.beginPath();
+        ctx.arc(8 + i * 12, tank.h, tank.wheelR, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // partículas
+      for (let i = 0; i < particles.length; i++) {
+        const p = particles[i];
+        ctx.globalAlpha = Math.max(0, p.life / p.max);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      ctx.restore();
+    }
+
+    let last = 0;
+    function loop(ts) {
+      if (last === 0) last = ts;
+      const dt = Math.min((ts - last) / 1000, 0.033);
+      last = ts;
+      update(dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    fireBtn.addEventListener('click', fire);
+    distInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') fire();
+    });
+    restartBtn.addEventListener('click', resetGame);
+
+    window.addEventListener('resize', resize);
+
+    resetGame();
+    resize();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+
+</html>
